@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>班级作业跟踪大屏 | 3月份数据</title>
+    <!-- 引入 ECharts -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <!-- 引入 Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --card-border: rgba(255, 255, 255, 0.1);
+            --text-main: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent: #3b82f6;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --success: #10b981;
+        }
+
+        body {
+            margin: 0;
+            padding: 24px;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(59, 130, 246, 0.15), transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(139, 92, 246, 0.15), transparent 25%);
+            color: var(--text-main);
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+
+        .dashboard-header {
+            margin-bottom: 32px;
+            text-align: center;
+        }
+
+        .dashboard-header h1 {
+            font-size: 2.5rem;
+            margin: 0 0 8px 0;
+            background: linear-gradient(to right, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: 1px;
+        }
+
+        .dashboard-header p {
+            color: var(--text-secondary);
+            margin: 0;
+            font-size: 1.1rem;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 24px;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 24px;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        /* KPI Cards Section */
+        .kpi-section {
+            grid-column: span 12;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+        }
+
+        .kpi-card {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            min-height: 152px;
+        }
+
+        .kpi-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+        }
+
+        .kpi-icon.blue { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+        .kpi-icon.red { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+        .kpi-icon.orange { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+
+        .kpi-info h3 {
+            margin: 0 0 4px 0;
+            color: var(--text-secondary);
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+        .kpi-info .value {
+            font-size: 2rem;
+            font-weight: 700;
+            margin: 0;
+            color: var(--text-main);
+            word-break: break-word;
+            white-space: normal;
+            line-height: 1.2;
+        }
+
+        .kpi-info .sub-text {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        .focus-card {
+            align-items: flex-start;
+            background:
+                linear-gradient(135deg, rgba(30, 41, 59, 0.82), rgba(30, 41, 59, 0.68)),
+                radial-gradient(circle at top right, rgba(59, 130, 246, 0.16), transparent 38%);
+        }
+
+        .focus-card .kpi-icon {
+            flex-shrink: 0;
+        }
+
+        .focus-card .kpi-info {
+            min-width: 0;
+            width: 100%;
+        }
+
+        .focus-card .value {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+            font-size: 1rem;
+            line-height: 1.4;
+        }
+
+        .focus-student-item {
+            display: inline-flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            min-width: 0;
+            padding: 10px 12px;
+            border-radius: 14px;
+            background: rgba(59, 130, 246, 0.12);
+            border: 1px solid rgba(96, 165, 250, 0.18);
+            color: var(--text-main);
+            font-size: 0.95rem;
+            font-weight: 600;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        }
+
+        .focus-student-item.top-1 {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.18), rgba(59, 130, 246, 0.12));
+            border-color: rgba(248, 113, 113, 0.28);
+        }
+
+        .focus-student-name {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .focus-student-count {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 32px;
+            padding: 3px 8px;
+            border-radius: 999px;
+            background: rgba(15, 23, 42, 0.72);
+            color: #93c5fd;
+            font-size: 0.82rem;
+            font-weight: 700;
+        }
+
+        .focus-card .sub-text {
+            letter-spacing: 0.04em;
+        }
+
+        .focus-student-empty {
+            color: var(--text-secondary);
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+        /* Charts Section */
+        .chart-card {
+            min-height: 400px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chart-card h2 {
+            margin: 0 0 20px 0;
+            font-size: 1.25rem;
+            color: var(--text-main);
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .chart-card h2::before {
+            content: '';
+            display: inline-block;
+            width: 4px;
+            height: 20px;
+            background: var(--accent);
+            border-radius: 2px;
+        }
+
+        .chart-container {
+            flex: 1;
+            width: 100%;
+            height: 100%;
+            min-height: 350px;
+        }
+
+        .span-8 { grid-column: span 8; }
+        .span-4 { grid-column: span 4; }
+        .span-6 { grid-column: span 6; }
+        .span-12 { grid-column: span 12; }
+
+        @media (max-width: 1200px) {
+            .span-8, .span-4, .span-6 { grid-column: span 12; }
+            .kpi-section { grid-template-columns: repeat(2, 1fr); }
+            .focus-card .value { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 768px) {
+            .kpi-section { grid-template-columns: 1fr; }
+            .kpi-card {
+                min-height: unset;
+                padding: 20px;
+            }
+            .focus-card .value {
+                gap: 8px;
+            }
+            .focus-student-item {
+                padding: 9px 11px;
+            }
+        }
+        
+    </style>
+</head>
+<body>
+
+    <div class="dashboard-header">
+        <h1>📊 全局作业监控看板</h1>
+        <p>数据分析 · 班级视图</p>
+    </div>
+
+    <!-- 筛选控制栏 -->
+    <div class="filter-bar card" style="display: flex; gap: 16px; margin: 0 auto 24px auto; max-width: 1600px; padding: 16px 24px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <label for="startDate">开始日期:</label>
+            <input type="date" id="startDate" value="2026-03-01" class="filter-input">
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <label for="endDate">结束日期:</label>
+            <input type="date" id="endDate" value="2026-03-31" class="filter-input">
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <label for="studentName">学生姓名:</label>
+            <input type="text" id="studentName" placeholder="输入姓名搜索..." class="filter-input">
+        </div>
+        <button onclick="loadDashboardData()" class="filter-btn">查询数据</button>
+    </div>
+    
+    <style>
+        .filter-input {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid var(--text-secondary);
+            color: var(--text-main);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: inherit;
+        }
+        .filter-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+        .filter-btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+        .filter-btn:hover {
+            background: #2563eb;
+        }
+    </style>
+
+    <div class="grid-container">
+        <!-- KPI Cards -->
+        <div class="kpi-section">
+            <div class="card kpi-card">
+                <div class="kpi-icon red">⚠️</div>
+                <div class="kpi-info">
+                    <h3>本月缺交总人次</h3>
+                    <div class="value" id="kpi-total-misses">--</div>
+                    <div class="sub-text">次记录</div>
+                </div>
+            </div>
+            
+            <div class="card kpi-card">
+                <div class="kpi-icon orange">📚</div>
+                <div class="kpi-info">
+                    <h3>重灾区学科</h3>
+                    <div class="value" id="kpi-worst-subject">--</div>
+                    <div class="sub-text" id="kpi-worst-subject-count">共 -- 次记录</div>
+                </div>
+            </div>
+
+            <div class="card kpi-card focus-card">
+                <div class="kpi-icon blue">👤</div>
+                <div class="kpi-info">
+                    <h3>需重点关注学生</h3>
+                    <div class="value" id="kpi-top-student">
+                        <span class="focus-student-empty">--</span>
+                    </div>
+                    <div class="sub-text">本月缺交黑榜前 5 名</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="card chart-card span-8">
+            <h2>📅 每日缺交趋势图</h2>
+            <div id="trendChart" class="chart-container"></div>
+        </div>
+
+        <div class="card chart-card span-4">
+            <h2>🥧 各科缺交占比</h2>
+            <div id="subjectChart" class="chart-container"></div>
+        </div>
+
+        <div class="card chart-card span-12">
+            <h2>🏆 学生缺交次数排行榜 (Top 10)</h2>
+            <div id="rankingChart" class="chart-container" style="height: 450px;"></div>
+        </div>
+    </div>
+
+    <script>
+        // 通用图表配置 (暗黑主题)
+        const commonOptions = {
+            backgroundColor: 'transparent',
+            textStyle: { fontFamily: 'Inter, sans-serif' },
+            tooltip: {
+                trigger: 'axis',
+                backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                borderColor: 'rgba(255,255,255,0.1)',
+                textStyle: { color: '#f8fafc' }
+            }
+        };
+
+        // 初始化图表实例
+        const trendChart = echarts.init(document.getElementById('trendChart'), 'dark');
+        const subjectChart = echarts.init(document.getElementById('subjectChart'), 'dark');
+        const rankingChart = echarts.init(document.getElementById('rankingChart'), 'dark');
+
+        function renderTopStudents(topStudents) {
+            const container = document.getElementById('kpi-top-student');
+            container.replaceChildren();
+
+            if (!Array.isArray(topStudents) || topStudents.length === 0) {
+                const empty = document.createElement('span');
+                empty.className = 'focus-student-empty';
+                empty.textContent = '无';
+                container.appendChild(empty);
+                return;
+            }
+
+            topStudents.forEach(student => {
+                const item = document.createElement('span');
+                item.className = 'focus-student-item';
+                if (container.children.length === 0) {
+                    item.classList.add('top-1');
+                }
+
+                const name = document.createElement('span');
+                name.className = 'focus-student-name';
+                name.textContent = student.name;
+
+                const count = document.createElement('span');
+                count.className = 'focus-student-count';
+                count.textContent = `${student.count}次`;
+
+                item.appendChild(name);
+                item.appendChild(count);
+                container.appendChild(item);
+            });
+        }
+
+        // 渲染排行榜图
+        function loadDashboardData() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            const student = document.getElementById('studentName').value;
+            
+            const params = new URLSearchParams();
+            if (startDate) params.append('start_date', startDate);
+            if (endDate) params.append('end_date', endDate);
+            if (student) params.append('student', student);
+            
+            const queryString = params.toString() ? `?${params.toString()}` : '';
+
+            // 发起请求并渲染 KPI
+            fetch(`/api/kpi${queryString}`)
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById('kpi-total-misses').innerText = data.total_misses || 0;
+                    document.getElementById('kpi-worst-subject').innerText = data.worst_subject.name;
+                    document.getElementById('kpi-worst-subject-count').innerText = `共 ${data.worst_subject.count} 次记录`;
+                    
+                    renderTopStudents(data.top_students);
+                });
+
+            // 渲染趋势图
+            fetch(`/api/trend${queryString}`)
+                .then(res => res.json())
+                .then(data => {
+                    trendChart.setOption({
+                        ...commonOptions,
+                        xAxis: {
+                            type: 'category',
+                            data: data.dates,
+                            axisLine: { lineStyle: { color: '#475569' } },
+                            axisLabel: { color: '#94a3b8' }
+                        },
+                        yAxis: {
+                            type: 'value',
+                            splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } },
+                            axisLabel: { color: '#94a3b8' }
+                        },
+                        series: [{
+                            data: data.counts,
+                            type: 'line',
+                            smooth: true,
+                            symbolSize: 8,
+                            itemStyle: { color: '#3b82f6' },
+                            areaStyle: {
+                                color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                    { offset: 0, color: 'rgba(59, 130, 246, 0.5)' },
+                                    { offset: 1, color: 'rgba(59, 130, 246, 0)' }
+                                ])
+                            }
+                        }]
+                    });
+                });
+
+            // 渲染各科占比图
+            fetch(`/api/subjects${queryString}`)
+                .then(res => res.json())
+                .then(data => {
+                    subjectChart.setOption({
+                        ...commonOptions,
+                        tooltip: { trigger: 'item' },
+                        series: [{
+                            name: '缺交次数',
+                            type: 'pie',
+                            radius: ['40%', '70%'],
+                            itemStyle: {
+                                borderRadius: 8,
+                                borderColor: '#1e293b',
+                                borderWidth: 2
+                            },
+                            label: { color: '#f8fafc' },
+                            data: data
+                        }]
+                    });
+                });
+
+            // 渲染排行榜图
+            fetch(`/api/rankings${queryString}`)
+                .then(res => res.json())
+                .then(data => {
+                    rankingChart.setOption({
+                        ...commonOptions,
+                        grid: { top: 20, right: 30, bottom: 20, left: 80, containLabel: true },
+                        xAxis: {
+                            type: 'value',
+                            splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } },
+                            axisLabel: { color: '#94a3b8' }
+                        },
+                        yAxis: {
+                            type: 'category',
+                            data: data.names,
+                            axisLine: { lineStyle: { color: '#475569' } },
+                            axisLabel: { color: '#f8fafc', fontWeight: 'bold' }
+                        },
+                        series: [{
+                            type: 'bar',
+                            data: data.counts,
+                            itemStyle: {
+                                color: new echarts.graphic.LinearGradient(1, 0, 0, 0, [
+                                    { offset: 0, color: '#f87171' },
+                                    { offset: 1, color: '#991b1b' }
+                                ]),
+                                borderRadius: [0, 4, 4, 0]
+                            },
+                            label: {
+                                show: true,
+                                position: 'right',
+                                valueAnimation: true,
+                                color: '#f8fafc'
+                            }
+                        }]
+                    });
+                });
+        }
+        
+        // 初始加载一次数据
+        loadDashboardData();
+
+        // 响应式调整图表尺寸
+        window.addEventListener('resize', () => {
+            trendChart.resize();
+            subjectChart.resize();
+            rankingChart.resize();
+        });
+    </script>
+</body>
+</html>

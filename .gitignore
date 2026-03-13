@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+
+venv/
+.venv/
+
+homework.db
+2025级6班名单.xlsx
+2026/
+
+.DS_Store
