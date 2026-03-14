@@ -309,6 +309,21 @@
             <input type="date" id="endDate" class="filter-input">
         </div>
         <div style="display: flex; align-items: center; gap: 8px;">
+            <label for="subjectFilter">学科:</label>
+            <select id="subjectFilter" class="filter-input">
+                <option value="">全部学科</option>
+                <option value="语文">语文</option>
+                <option value="数学">数学</option>
+                <option value="英语">英语</option>
+                <option value="物理">物理</option>
+                <option value="化学">化学</option>
+                <option value="生物">生物</option>
+                <option value="历史">历史</option>
+                <option value="地理">地理</option>
+                <option value="政治">政治</option>
+            </select>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
             <label for="studentName">学生姓名:</label>
             <input type="text" id="studentName" placeholder="输入姓名搜索..." class="filter-input">
         </div>
@@ -501,11 +516,13 @@
             const startDate = document.getElementById('startDate').value;
             const endDate = document.getElementById('endDate').value;
             const student = document.getElementById('studentName').value;
-            
+            const subject = document.getElementById('subjectFilter').value;
+
             const params = new URLSearchParams();
             if (startDate) params.append('start_date', startDate);
             if (endDate) params.append('end_date', endDate);
             if (student) params.append('student', student);
+            if (subject) params.append('subject', subject);
             
             const queryString = params.toString() ? `?${params.toString()}` : '';
 
@@ -712,6 +729,7 @@
             document.getElementById('startDate').value = semesterStart;
             document.getElementById('endDate').value = semesterEnd;
             document.getElementById('studentName').value = '';
+            document.getElementById('subjectFilter').value = '';
             loadDashboardData();
         }
 

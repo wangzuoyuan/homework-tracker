@@ -97,6 +97,7 @@ def get_filter_conditions():
     start_date = request.args.get('start_date', semester['semester_start'])
     end_date = request.args.get('end_date', semester['semester_end'])
     student = request.args.get('student', '')
+    subject = request.args.get('subject', '')
 
     conditions = ["(r.remark IS NULL OR r.remark = '')", "r.subject != '全科'"]
     params = []
@@ -112,6 +113,22 @@ def get_filter_conditions():
         placeholders = ','.join(['?'] * len(EXCLUDED_STUDENTS))
         conditions.append(f"s.name NOT IN ({placeholders})")
         params.extend(EXCLUDED_STUDENTS)
+
+    if subject:
+        # 找到该学科对应的所有关键词，匹配原始 subject 字段
+        keywords = []
+        for canonical_name, kws in SUBJECT_GROUPS:
+            if canonical_name == subject:
+                keywords = kws
+                break
+        if keywords:
+            # 匹配原始值包含任一关键词的记录
+            kw_conditions = ' OR '.join(['r.subject LIKE ?' for _ in keywords])
+            conditions.append(f"({kw_conditions})")
+            params.extend([f"%{kw}%" for kw in keywords])
+        else:
+            conditions.append("r.subject = ?")
+            params.append(subject)
 
     where_clause = " WHERE " + " AND ".join(conditions)
     return where_clause, params
