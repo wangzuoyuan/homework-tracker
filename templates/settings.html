@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>学期配置 | 作业跟踪</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --card-border: rgba(255, 255, 255, 0.1);
+            --text-main: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent: #3b82f6;
+            --success: #10b981;
+            --danger: #ef4444;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-color);
+            background-image:
+                radial-gradient(circle at 15% 50%, rgba(59, 130, 246, 0.12), transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(139, 92, 246, 0.12), transparent 25%);
+            color: var(--text-main);
+            min-height: 100vh;
+            padding: 24px;
+        }
+
+        .page-header {
+            max-width: 600px;
+            margin: 0 auto 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .page-header h1 {
+            font-size: 1.75rem;
+            background: linear-gradient(to right, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .back-link {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.95rem;
+            transition: color 0.2s;
+        }
+        .back-link:hover { color: var(--accent); }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 32px;
+            backdrop-filter: blur(12px);
+            max-width: 600px;
+            margin: 0 auto 24px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+            font-weight: 500;
+        }
+
+        .form-input {
+            width: 100%;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(148, 163, 184, 0.4);
+            color: var(--text-main);
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.95rem;
+        }
+        .form-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .form-row {
+            display: flex;
+            gap: 16px;
+        }
+        .form-row .form-group { flex: 1; }
+
+        .btn {
+            border: none;
+            padding: 10px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.95rem;
+            font-family: inherit;
+            transition: background 0.2s;
+        }
+
+        .btn-primary { background: var(--accent); color: #fff; }
+        .btn-primary:hover { background: #2563eb; }
+
+        .status-msg {
+            font-size: 0.9rem;
+            margin-top: 12px;
+            min-height: 1.4em;
+        }
+        .status-msg.success { color: var(--success); }
+        .status-msg.error { color: var(--danger); }
+    </style>
+</head>
+<body>
+    <div class="page-header">
+        <h1>学期配置</h1>
+        <a href="/" class="back-link">&larr; 返回看板</a>
+    </div>
+
+    <div class="card">
+        <div class="form-group">
+            <label for="semesterName">学期名称</label>
+            <input type="text" id="semesterName" class="form-input" placeholder="例: 2025-2026学年第二学期">
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="semesterStart">开学日期</label>
+                <input type="date" id="semesterStart" class="form-input">
+            </div>
+            <div class="form-group">
+                <label for="semesterEnd">结束日期</label>
+                <input type="date" id="semesterEnd" class="form-input">
+            </div>
+        </div>
+
+        <button class="btn btn-primary" onclick="saveSemester()">保存配置</button>
+        <div class="status-msg" id="statusMsg"></div>
+    </div>
+
+<script>
+function showStatus(msg, type) {
+    const el = document.getElementById('statusMsg');
+    el.textContent = msg;
+    el.className = 'status-msg ' + type;
+    setTimeout(() => { el.textContent = ''; }, 4000);
+}
+
+// Load current config
+fetch('/api/semester')
+    .then(r => r.json())
+    .then(data => {
+        document.getElementById('semesterName').value = data.semester_name || '';
+        document.getElementById('semesterStart').value = data.semester_start || '';
+        document.getElementById('semesterEnd').value = data.semester_end || '';
+    });
+
+function saveSemester() {
+    const payload = {
+        semester_name: document.getElementById('semesterName').value.trim(),
+        semester_start: document.getElementById('semesterStart').value,
+        semester_end: document.getElementById('semesterEnd').value,
+    };
+
+    if (!payload.semester_start || !payload.semester_end) {
+        showStatus('请填写开学和结束日期', 'error');
+        return;
+    }
+
+    fetch('/api/semester', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showStatus('配置已保存', 'success');
+        }
+    })
+    .catch(() => showStatus('保存失败', 'error'));
+}
+</script>
+</body>
+</html>

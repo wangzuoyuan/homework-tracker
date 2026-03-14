@@ -272,24 +272,48 @@
 
     <div class="dashboard-header">
         <h1>📊 全局作业监控看板</h1>
-        <p>数据分析 · 班级视图</p>
+        <p>数据分析 · 班级视图 · <a href="/manage" style="color: #94a3b8; text-decoration: none; border-bottom: 1px dashed #94a3b8;">数据管理</a> · <a href="/settings" style="color: #94a3b8; text-decoration: none; border-bottom: 1px dashed #94a3b8;">学期配置</a></p>
+    </div>
+
+    <!-- 快速录入区 -->
+    <div class="grid-container" style="margin-bottom: 24px;">
+        <div class="card record-entry-card">
+            <div class="record-form">
+                <div class="record-form-header">
+                    <h2 style="margin: 0; font-size: 1.25rem; display: flex; align-items: center; gap: 8px;">
+                        🖊️ 快速录入缺交记录
+                    </h2>
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <span class="helper-text">录入日期:</span>
+                        <input type="date" id="recordDate" class="filter-input">
+                    </div>
+                </div>
+                <textarea id="recordText" class="record-textarea" placeholder="格式例：&#10;张三: 英语粉书&#10;李四: 数学课本, 物理笔记&#10;王五：全科"></textarea>
+                <div class="record-actions">
+                    <div id="recordStatus" style="margin-right: auto; font-size: 0.9rem;"></div>
+                    <button onclick="submitRecords()" id="submitBtn" class="filter-btn" style="padding: 10px 24px;">保存记录</button>
+                    <button onclick="document.getElementById('recordText').value=''" class="filter-btn" style="background: rgba(255,255,255,0.1); color: var(--text-main);">清空</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- 筛选控制栏 -->
     <div class="filter-bar card" style="display: flex; gap: 16px; margin: 0 auto 24px auto; max-width: 1600px; padding: 16px 24px;">
         <div style="display: flex; align-items: center; gap: 8px;">
             <label for="startDate">开始日期:</label>
-            <input type="date" id="startDate" value="2026-03-01" class="filter-input">
+            <input type="date" id="startDate" class="filter-input">
         </div>
         <div style="display: flex; align-items: center; gap: 8px;">
             <label for="endDate">结束日期:</label>
-            <input type="date" id="endDate" value="2026-03-31" class="filter-input">
+            <input type="date" id="endDate" class="filter-input">
         </div>
         <div style="display: flex; align-items: center; gap: 8px;">
             <label for="studentName">学生姓名:</label>
             <input type="text" id="studentName" placeholder="输入姓名搜索..." class="filter-input">
         </div>
         <button onclick="loadDashboardData()" class="filter-btn">查询数据</button>
+        <button onclick="resetFilters()" class="filter-btn" style="background: rgba(255,255,255,0.1); color: var(--text-main);">重置</button>
     </div>
     
     <style>
@@ -317,6 +341,57 @@
         }
         .filter-btn:hover {
             background: #2563eb;
+        }
+
+        /* Record Entry Card */
+        .record-entry-card {
+            grid-column: span 12;
+            margin-bottom: 24px;
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.8));
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        .record-form {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .record-form-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .record-textarea {
+            width: 100%;
+            height: 120px;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            color: var(--text-main);
+            padding: 12px;
+            font-family: inherit;
+            font-size: 0.95rem;
+            resize: vertical;
+        }
+
+        .record-textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+            background: rgba(15, 23, 42, 0.8);
+        }
+
+        .record-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .helper-text {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
         }
     </style>
 
@@ -476,15 +551,43 @@
                             }
                         }]
                     });
+
+                    trendChart.on('click', function(params) {
+                        const clickedDate = params.name;
+                        document.getElementById('startDate').value = clickedDate;
+                        document.getElementById('endDate').value = clickedDate;
+                        loadDashboardData();
+                    });
                 });
 
             // 渲染各科占比图
             fetch(`/api/subjects${queryString}`)
                 .then(res => res.json())
                 .then(data => {
+                    // Store student details for tooltip
+                    const subjectStudents = {};
+                    data.forEach(item => {
+                        subjectStudents[item.name] = item.students || [];
+                    });
+
                     subjectChart.setOption({
                         ...commonOptions,
-                        tooltip: { trigger: 'item' },
+                        tooltip: {
+                            trigger: 'item',
+                            backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                            borderColor: 'rgba(255,255,255,0.1)',
+                            textStyle: { color: '#f8fafc', fontSize: 13 },
+                            formatter: function(params) {
+                                const students = subjectStudents[params.name] || [];
+                                let html = `<div style="font-weight:700;margin-bottom:6px;">${params.name} — 共 ${params.value} 次</div>`;
+                                if (students.length > 0) {
+                                    students.forEach(s => {
+                                        html += `<div style="display:flex;justify-content:space-between;gap:16px;line-height:1.6;"><span>${s.name}</span><span style="color:#93c5fd;font-weight:600;">${s.count}次</span></div>`;
+                                    });
+                                }
+                                return html;
+                            }
+                        },
                         series: [{
                             name: '缺交次数',
                             type: 'pie',
@@ -514,13 +617,14 @@
                         },
                         yAxis: {
                             type: 'category',
-                            data: data.names,
+                            data: data.names.slice().reverse(),
                             axisLine: { lineStyle: { color: '#475569' } },
                             axisLabel: { color: '#f8fafc', fontWeight: 'bold' }
                         },
                         series: [{
                             type: 'bar',
-                            data: data.counts,
+                            data: data.counts.slice().reverse(),
+                            cursor: 'pointer',
                             itemStyle: {
                                 color: new echarts.graphic.LinearGradient(1, 0, 0, 0, [
                                     { offset: 0, color: '#f87171' },
@@ -536,11 +640,94 @@
                             }
                         }]
                     });
+
+                    rankingChart.on('click', function(params) {
+                        const sd = document.getElementById('startDate').value;
+                        const ed = document.getElementById('endDate').value;
+                        window.location.href = '/student/' + encodeURIComponent(params.name) + '?start_date=' + sd + '&end_date=' + ed;
+                    });
                 });
         }
+
+        // 录入功能实现
+        function submitRecords() {
+            const rawText = document.getElementById('recordText').value;
+            const date = document.getElementById('recordDate').value;
+            const statusEl = document.getElementById('recordStatus');
+            const btn = document.getElementById('submitBtn');
+            
+            if (!rawText.trim()) {
+                showStatus("请输入记录内容", "error");
+                return;
+            }
+            
+            btn.disabled = true;
+            btn.innerText = "提交中...";
+            
+            fetch('/api/records', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ raw_text: rawText, date: date })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    let msg = `成功录入 ${data.added_count} 条记录`;
+                    if (data.errors && data.errors.length > 0) {
+                        msg += ` (忽略 ${data.errors.length} 条格式错误)`;
+                        console.warn("Recording errors:", data.errors);
+                    }
+                    showStatus(msg, "success");
+                    document.getElementById('recordText').value = '';
+                    // 重新加载仪表盘数据
+                    loadDashboardData();
+                } else {
+                    showStatus(data.message || "录入失败", "error");
+                }
+            })
+            .catch(err => {
+                showStatus("网络错误，请稍后重试", "error");
+                console.error(err);
+            })
+            .finally(() => {
+                btn.disabled = false;
+                btn.innerText = "保存记录";
+            });
+        }
         
-        // 初始加载一次数据
-        loadDashboardData();
+        function showStatus(msg, type) {
+            const statusEl = document.getElementById('recordStatus');
+            statusEl.innerText = msg;
+            statusEl.style.color = type === "error" ? "#ef4444" : "#10b981";
+            setTimeout(() => {
+                statusEl.innerText = "";
+            }, 5000);
+        }
+        
+        // 学期配置
+        let semesterStart = '';
+        let semesterEnd = '';
+
+        function resetFilters() {
+            document.getElementById('startDate').value = semesterStart;
+            document.getElementById('endDate').value = semesterEnd;
+            document.getElementById('studentName').value = '';
+            loadDashboardData();
+        }
+
+        // 初始化录入日期为今天
+        document.getElementById('recordDate').value = new Date().toISOString().split('T')[0];
+
+        // 加载学期配置后初始化看板
+        fetch('/api/semester')
+            .then(r => r.json())
+            .then(config => {
+                semesterStart = config.semester_start;
+                semesterEnd = config.semester_end;
+                document.getElementById('startDate').value = semesterStart;
+                document.getElementById('endDate').value = semesterEnd;
+                loadDashboardData();
+            });
 
         // 响应式调整图表尺寸
         window.addEventListener('resize', () => {

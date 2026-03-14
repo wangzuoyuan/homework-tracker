@@ -25,7 +25,14 @@ def init_db():
             date TEXT NOT NULL,
             subject TEXT NOT NULL,
             content TEXT,
+            remark TEXT,
             FOREIGN KEY (student_id) REFERENCES students(id)
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT
         )
     ''')
     conn.commit()
@@ -88,11 +95,25 @@ def export_daily_report(target_date):
     if df.empty:
         return
         
-    # Group by student to merge subjects
+    # Group by student to merge subjects (deduplicated)
+    def unique_join(series):
+        seen = []
+        for v in series:
+            if v and v not in seen:
+                seen.append(v)
+        return '、'.join(seen)
+
+    def nonempty_join(series):
+        seen = []
+        for v in series.dropna():
+            if v and v not in seen:
+                seen.append(v)
+        return '、'.join(seen)
+
     grouped_df = df.groupby(['学号', '姓名']).agg({
-        '缺交科目': lambda x: '、'.join(x),
-        '说明': lambda x: '、'.join(v for v in set(x.dropna()) if v != ''),
-        '特殊情况': lambda x: '、'.join(set(x.dropna().loc[x != '']))
+        '缺交科目': unique_join,
+        '说明': nonempty_join,
+        '特殊情况': nonempty_join,
     }).reset_index()
     
     # Sort by student_no

@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ student_name }} | 作业跟踪</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --card-border: rgba(255, 255, 255, 0.1);
+            --text-main: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent: #3b82f6;
+            --danger: #ef4444;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --row-hover: rgba(59, 130, 246, 0.08);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-color);
+            background-image:
+                radial-gradient(circle at 15% 50%, rgba(59, 130, 246, 0.12), transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(139, 92, 246, 0.12), transparent 25%);
+            color: var(--text-main);
+            min-height: 100vh;
+            padding: 24px;
+        }
+
+        .page-header {
+            max-width: 1000px;
+            margin: 0 auto 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .page-header h1 {
+            font-size: 1.75rem;
+            background: linear-gradient(to right, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .back-link {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.95rem;
+            transition: color 0.2s;
+        }
+        .back-link:hover { color: var(--accent); }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 24px;
+            backdrop-filter: blur(12px);
+            max-width: 1000px;
+            margin: 0 auto 24px;
+        }
+
+        .summary {
+            display: flex;
+            gap: 24px;
+            flex-wrap: wrap;
+            margin-bottom: 8px;
+        }
+
+        .summary-item {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+        .summary-item strong {
+            color: var(--text-main);
+            font-size: 1.1rem;
+        }
+
+        .table-wrapper { overflow-x: auto; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        th {
+            text-align: left;
+            padding: 12px 14px;
+            color: var(--text-secondary);
+            font-weight: 600;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-bottom: 1px solid var(--card-border);
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 10px 14px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            vertical-align: middle;
+        }
+
+        tr:hover td { background: var(--row-hover); }
+
+        .remark-tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            background: rgba(245, 158, 11, 0.2);
+            color: #fbbf24;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 48px 0;
+            color: var(--text-secondary);
+        }
+    </style>
+</head>
+<body>
+    <div class="page-header">
+        <h1>{{ student_name }}</h1>
+        <a href="/" class="back-link">&larr; 返回看板</a>
+    </div>
+
+    <div class="card">
+        <div class="summary" id="summary"></div>
+    </div>
+
+    <div class="card">
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:110px;">日期</th>
+                        <th style="width:100px;">学科</th>
+                        <th>说明</th>
+                        <th style="width:120px;">特殊情况</th>
+                    </tr>
+                </thead>
+                <tbody id="recordsBody">
+                    <tr><td colspan="4" class="empty-state">加载中...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+<script>
+const studentName = {{ student_name | tojson }};
+const tbody = document.getElementById('recordsBody');
+const summary = document.getElementById('summary');
+const urlParams = new URLSearchParams(window.location.search);
+
+const apiParams = new URLSearchParams();
+apiParams.set('student', studentName);
+if (urlParams.get('start_date')) apiParams.set('start_date', urlParams.get('start_date'));
+if (urlParams.get('end_date')) apiParams.set('end_date', urlParams.get('end_date'));
+
+const dateRange = urlParams.get('start_date') && urlParams.get('end_date')
+    ? urlParams.get('start_date') + ' ~ ' + urlParams.get('end_date')
+    : '全部';
+
+fetch('/api/manage/records?' + apiParams.toString())
+    .then(r => r.json())
+    .then(records => {
+        // Summary stats
+        const totalCount = records.length;
+        const subjects = {};
+        records.forEach(r => {
+            const s = r.subject || '未分类';
+            subjects[s] = (subjects[s] || 0) + 1;
+        });
+        const sortedSubjects = Object.entries(subjects).sort((a, b) => b[1] - a[1]);
+        const worstSubject = sortedSubjects.length > 0 ? sortedSubjects[0][0] : '无';
+
+        summary.innerHTML = `
+            <div class="summary-item">统计区间: <strong>${dateRange}</strong></div>
+            <div class="summary-item">缺交次数: <strong>${totalCount}</strong></div>
+            <div class="summary-item">缺交最多学科: <strong>${escapeHtml(worstSubject)}</strong></div>
+        `;
+
+        if (records.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="empty-state">暂无缺交记录</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = '';
+        records.forEach(rec => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${rec.date}</td>
+                <td>${escapeHtml(rec.subject || '')}</td>
+                <td>${escapeHtml(rec.content || '')}</td>
+                <td>${rec.remark ? '<span class="remark-tag">' + escapeHtml(rec.remark) + '</span>' : ''}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    })
+    .catch(() => {
+        tbody.innerHTML = '<tr><td colspan="4" class="empty-state">加载失败</td></tr>';
+    });
+
+function escapeHtml(str) {
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+}
+</script>
+</body>
+</html>
