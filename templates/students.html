@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>人员管理 | 作业跟踪</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --card-border: rgba(255, 255, 255, 0.1);
+            --text-main: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent: #3b82f6;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-color);
+            background-image:
+                radial-gradient(circle at 15% 50%, rgba(59, 130, 246, 0.12), transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(139, 92, 246, 0.12), transparent 25%);
+            color: var(--text-main);
+            min-height: 100vh;
+            padding: 24px;
+        }
+
+        .page-header {
+            max-width: 900px;
+            margin: 0 auto 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .page-header h1 {
+            font-size: 1.75rem;
+            background: linear-gradient(to right, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .back-link {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.95rem;
+            transition: color 0.2s;
+        }
+        .back-link:hover { color: var(--accent); }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 24px 32px;
+            backdrop-filter: blur(12px);
+            max-width: 900px;
+            margin: 0 auto 24px;
+        }
+
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: var(--text-secondary);
+        }
+
+        .form-row {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .form-group label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .form-input {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(148, 163, 184, 0.4);
+            color: var(--text-main);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.9rem;
+        }
+        .form-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .btn {
+            border: none;
+            padding: 8px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9rem;
+            font-family: inherit;
+            transition: background 0.2s;
+            white-space: nowrap;
+        }
+
+        .btn-primary { background: var(--accent); color: #fff; }
+        .btn-primary:hover { background: #2563eb; }
+        .btn-danger { background: var(--danger); color: #fff; }
+        .btn-danger:hover { background: #dc2626; }
+        .btn-sm { padding: 5px 14px; font-size: 0.85rem; }
+
+        .status-msg {
+            font-size: 0.9rem;
+            margin-top: 12px;
+            min-height: 1.4em;
+        }
+        .status-msg.success { color: var(--success); }
+        .status-msg.error { color: var(--danger); }
+
+        .search-bar {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .search-bar input {
+            flex: 1;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            font-size: 0.9rem;
+        }
+
+        th {
+            color: var(--text-secondary);
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        tr:hover { background: rgba(59, 130, 246, 0.06); }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .badge-excluded {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--danger);
+        }
+
+        .badge-active {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--success);
+        }
+
+        .toggle-btn {
+            background: none;
+            border: 1px solid rgba(148, 163, 184, 0.4);
+            color: var(--text-secondary);
+            padding: 4px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+        .toggle-btn:hover {
+            border-color: var(--warning);
+            color: var(--warning);
+        }
+
+        .actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .empty-msg {
+            text-align: center;
+            color: var(--text-secondary);
+            padding: 32px;
+        }
+
+        .row-excluded {
+            opacity: 0.55;
+        }
+
+        .count-badge {
+            display: inline-block;
+            background: rgba(59, 130, 246, 0.15);
+            color: var(--accent);
+            padding: 2px 8px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        @media (max-width: 768px) {
+            .form-row { flex-wrap: wrap; }
+            .page-header { flex-direction: column; gap: 8px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="page-header">
+        <h1>人员管理</h1>
+        <a href="/" class="back-link">&larr; 返回看板</a>
+    </div>
+
+    <div class="card">
+        <div class="card-title">添加学生</div>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="newName">姓名 *</label>
+                <input type="text" id="newName" class="form-input" placeholder="学生姓名">
+            </div>
+            <div class="form-group">
+                <label for="newNo">学号</label>
+                <input type="text" id="newNo" class="form-input" placeholder="可选">
+            </div>
+            <div class="form-group">
+                <label for="newGender">性别</label>
+                <select id="newGender" class="form-input">
+                    <option value="">不填</option>
+                    <option value="男">男</option>
+                    <option value="女">女</option>
+                </select>
+            </div>
+            <button class="btn btn-primary" onclick="addStudent()">添加</button>
+        </div>
+        <div class="status-msg" id="addMsg"></div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">学生列表</div>
+        <div class="search-bar">
+            <input type="text" id="searchInput" class="form-input" placeholder="搜索姓名或学号..." oninput="renderTable()">
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>学号</th>
+                    <th>姓名</th>
+                    <th>性别</th>
+                    <th>记录数</th>
+                    <th>状态</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="studentBody"></tbody>
+        </table>
+    </div>
+
+<script>
+let allStudents = [];
+
+function showMsg(elId, msg, type) {
+    const el = document.getElementById(elId);
+    el.textContent = msg;
+    el.className = 'status-msg ' + type;
+    setTimeout(() => { el.textContent = ''; }, 4000);
+}
+
+function loadStudents() {
+    fetch('/api/students')
+        .then(r => r.json())
+        .then(data => {
+            allStudents = data;
+            renderTable();
+        });
+}
+
+function renderTable() {
+    const keyword = document.getElementById('searchInput').value.trim().toLowerCase();
+    const filtered = allStudents.filter(s => {
+        if (!keyword) return true;
+        return (s.name && s.name.toLowerCase().includes(keyword)) ||
+               (s.student_no && s.student_no.toLowerCase().includes(keyword));
+    });
+
+    const tbody = document.getElementById('studentBody');
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="empty-msg">暂无学生数据</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = filtered.map(s => `
+        <tr class="${s.excluded ? 'row-excluded' : ''}">
+            <td>${s.student_no || '-'}</td>
+            <td>${s.name}</td>
+            <td>${s.gender || '-'}</td>
+            <td><span class="count-badge">${s.record_count}</span></td>
+            <td>
+                <span class="badge ${s.excluded ? 'badge-excluded' : 'badge-active'}">
+                    ${s.excluded ? '已排除' : '正常'}
+                </span>
+            </td>
+            <td class="actions">
+                <button class="toggle-btn" onclick="toggleExcluded(${s.id})">
+                    ${s.excluded ? '取消排除' : '排除'}
+                </button>
+                <button class="btn btn-danger btn-sm" onclick="deleteStudent(${s.id}, '${s.name}', ${s.record_count})">删除</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function addStudent() {
+    const name = document.getElementById('newName').value.trim();
+    const student_no = document.getElementById('newNo').value.trim();
+    const gender = document.getElementById('newGender').value;
+
+    if (!name) {
+        showMsg('addMsg', '请输入学生姓名', 'error');
+        return;
+    }
+
+    fetch('/api/students', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, student_no, gender })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showMsg('addMsg', `已添加学生: ${name}`, 'success');
+            document.getElementById('newName').value = '';
+            document.getElementById('newNo').value = '';
+            document.getElementById('newGender').value = '';
+            loadStudents();
+        } else {
+            showMsg('addMsg', data.message || '添加失败', 'error');
+        }
+    })
+    .catch(() => showMsg('addMsg', '添加失败', 'error'));
+}
+
+function toggleExcluded(id) {
+    fetch(`/api/students/${id}/toggle-excluded`, { method: 'PUT' })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) loadStudents();
+        });
+}
+
+function deleteStudent(id, name, recordCount) {
+    if (recordCount > 0) {
+        alert(`学生 ${name} 有 ${recordCount} 条作业记录，无法直接删除。\n请先在"数据管理"中删除相关记录。`);
+        return;
+    }
+    if (!confirm(`确定删除学生 ${name} 吗？`)) return;
+
+    fetch(`/api/students/${id}`, { method: 'DELETE' })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                loadStudents();
+            } else {
+                alert(data.message || '删除失败');
+            }
+        });
+}
+
+loadStudents();
+</script>
+</body>
+</html>

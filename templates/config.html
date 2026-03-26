@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>系统配置 | 作业跟踪</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --card-border: rgba(255, 255, 255, 0.1);
+            --text-main: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent: #3b82f6;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --row-hover: rgba(59, 130, 246, 0.08);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-color);
+            background-image:
+                radial-gradient(circle at 15% 50%, rgba(59, 130, 246, 0.12), transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(139, 92, 246, 0.12), transparent 25%);
+            color: var(--text-main);
+            min-height: 100vh;
+            padding: 24px;
+        }
+
+        .page-header {
+            max-width: 1200px;
+            margin: 0 auto 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .page-header h1 {
+            font-size: 1.75rem;
+            background: linear-gradient(to right, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .back-link {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.95rem;
+            transition: color 0.2s;
+        }
+        .back-link:hover { color: var(--accent); }
+
+        /* Tabs */
+        .tabs {
+            max-width: 1200px;
+            margin: 0 auto 24px;
+            display: flex;
+            gap: 4px;
+            background: rgba(15, 23, 42, 0.5);
+            border-radius: 12px;
+            padding: 4px;
+            border: 1px solid var(--card-border);
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 10px 20px;
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-family: inherit;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+
+        .tab-btn:hover { color: var(--text-main); }
+
+        .tab-btn.active {
+            background: var(--accent);
+            color: #fff;
+        }
+
+        .tab-panel {
+            display: none;
+        }
+
+        .tab-panel.active {
+            display: block;
+        }
+
+        /* Card */
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 24px 32px;
+            backdrop-filter: blur(12px);
+            max-width: 1200px;
+            margin: 0 auto 24px;
+        }
+
+        .card-title {
+            font-size: 1.05rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: var(--text-secondary);
+        }
+
+        /* Forms */
+        .form-row {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+            flex-wrap: wrap;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .form-group label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .form-input {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(148, 163, 184, 0.4);
+            color: var(--text-main);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.9rem;
+        }
+        .form-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        /* Buttons */
+        .btn {
+            border: none;
+            padding: 8px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9rem;
+            font-family: inherit;
+            transition: background 0.2s, opacity 0.2s;
+        }
+
+        .btn-primary { background: var(--accent); color: #fff; }
+        .btn-primary:hover { background: #2563eb; }
+        .btn-success { background: var(--success); color: #fff; }
+        .btn-success:hover { background: #059669; }
+        .btn-danger { background: var(--danger); color: #fff; }
+        .btn-danger:hover { background: #dc2626; }
+        .btn-ghost { background: rgba(255, 255, 255, 0.08); color: var(--text-secondary); }
+        .btn-ghost:hover { background: rgba(255, 255, 255, 0.14); color: var(--text-main); }
+        .btn-sm { padding: 5px 14px; font-size: 0.85rem; }
+
+        .status-msg {
+            font-size: 0.9rem;
+            margin-top: 12px;
+            min-height: 1.4em;
+        }
+        .status-msg.success { color: var(--success); }
+        .status-msg.error { color: var(--danger); }
+
+        /* Table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        th {
+            text-align: left;
+            padding: 10px 12px;
+            color: var(--text-secondary);
+            font-weight: 600;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--card-border);
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            vertical-align: middle;
+        }
+
+        tr:hover td { background: var(--row-hover); }
+
+        td input[type="text"] {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            color: var(--text-main);
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 0.88rem;
+            width: 100%;
+        }
+        td input[type="text"]:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .actions-cell {
+            display: flex;
+            gap: 6px;
+            white-space: nowrap;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 0;
+            color: var(--text-secondary);
+        }
+
+        .record-count {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .remark-tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            background: rgba(245, 158, 11, 0.2);
+            color: #fbbf24;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .badge-excluded {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--danger);
+        }
+
+        .badge-active {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--success);
+        }
+
+        .toggle-btn {
+            background: none;
+            border: 1px solid rgba(148, 163, 184, 0.4);
+            color: var(--text-secondary);
+            padding: 4px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+        .toggle-btn:hover {
+            border-color: var(--warning);
+            color: var(--warning);
+        }
+
+        .row-excluded { opacity: 0.55; }
+
+        .count-badge {
+            display: inline-block;
+            background: rgba(59, 130, 246, 0.15);
+            color: var(--accent);
+            padding: 2px 8px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .search-bar {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .filter-bar {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+
+        /* Semester form */
+        .semester-form {
+            max-width: 600px;
+        }
+
+        .semester-form .form-group {
+            margin-bottom: 20px;
+        }
+
+        .semester-form .form-input {
+            width: 100%;
+        }
+
+        .semester-form .form-row .form-group {
+            flex: 1;
+        }
+
+        @media (max-width: 768px) {
+            .form-row { flex-wrap: wrap; }
+            .page-header { flex-direction: column; gap: 8px; }
+            .tabs { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <div class="page-header">
+        <h1>系统配置</h1>
+        <a href="/" class="back-link">&larr; 返回看板</a>
+    </div>
+
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('manage')">数据管理</button>
+        <button class="tab-btn" onclick="switchTab('students')">人员管理</button>
+        <button class="tab-btn" onclick="switchTab('semester')">学期配置</button>
+    </div>
+
+    <!-- ==================== 数据管理 ==================== -->
+    <div id="tab-manage" class="tab-panel active">
+        <div class="card">
+            <div class="filter-bar">
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <label>日期:</label>
+                    <input type="date" id="filterDate" class="form-input">
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <label>学生:</label>
+                    <input type="text" id="filterStudent" class="form-input" placeholder="输入姓名...">
+                </div>
+                <button class="btn btn-primary btn-sm" onclick="loadRecords()">查询</button>
+                <button class="btn btn-ghost btn-sm" onclick="clearFilters()">清空</button>
+                <span class="record-count" id="recordCount"></span>
+                <span class="status-msg" id="manageMsg"></span>
+            </div>
+
+            <div style="overflow-x:auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width:80px;">姓名</th>
+                            <th style="width:110px;">日期</th>
+                            <th style="width:120px;">学科</th>
+                            <th>说明</th>
+                            <th style="width:120px;">特殊情况</th>
+                            <th style="width:140px;">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="recordsBody">
+                        <tr><td colspan="6" class="empty-state">请选择筛选条件后点击查询</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== 人员管理 ==================== -->
+    <div id="tab-students" class="tab-panel">
+        <div class="card">
+            <div class="card-title">添加学生</div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="newName">姓名 *</label>
+                    <input type="text" id="newName" class="form-input" placeholder="学生姓名">
+                </div>
+                <div class="form-group">
+                    <label for="newNo">学号</label>
+                    <input type="text" id="newNo" class="form-input" placeholder="可选">
+                </div>
+                <div class="form-group">
+                    <label for="newGender">性别</label>
+                    <select id="newGender" class="form-input">
+                        <option value="">不填</option>
+                        <option value="男">男</option>
+                        <option value="女">女</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" onclick="addStudent()">添加</button>
+            </div>
+            <div class="status-msg" id="addMsg"></div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">学生列表</div>
+            <div class="search-bar">
+                <input type="text" id="searchInput" class="form-input" placeholder="搜索姓名或学号..." oninput="renderStudentTable()" style="flex:1;">
+            </div>
+            <div style="overflow-x:auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>学号</th>
+                            <th>姓名</th>
+                            <th>性别</th>
+                            <th>记录数</th>
+                            <th>状态</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="studentBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== 学期配置 ==================== -->
+    <div id="tab-semester" class="tab-panel">
+        <div class="card">
+            <div class="semester-form">
+                <div class="form-group">
+                    <label for="semesterName">学期名称</label>
+                    <input type="text" id="semesterName" class="form-input" placeholder="例: 2025-2026学年第二学期">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="semesterStart">开学日期</label>
+                        <input type="date" id="semesterStart" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label for="semesterEnd">结束日期</label>
+                        <input type="date" id="semesterEnd" class="form-input">
+                    </div>
+                </div>
+
+                <button class="btn btn-primary" onclick="saveSemester()">保存配置</button>
+                <div class="status-msg" id="semesterMsg"></div>
+            </div>
+        </div>
+    </div>
+
+<script>
+/* ==================== Tab switching ==================== */
+function switchTab(name) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    event.target.classList.add('active');
+
+    // Lazy load data
+    if (name === 'students' && allStudents.length === 0) loadStudents();
+    if (name === 'semester' && !semesterLoaded) loadSemester();
+
+    // Save to URL hash
+    history.replaceState(null, '', '#' + name);
+}
+
+// Restore tab from URL hash
+window.addEventListener('DOMContentLoaded', () => {
+    const hash = location.hash.replace('#', '');
+    if (['manage', 'students', 'semester'].includes(hash)) {
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('tab-' + hash).classList.add('active');
+        document.querySelectorAll('.tab-btn').forEach(b => {
+            if ((hash === 'manage' && b.textContent === '数据管理') ||
+                (hash === 'students' && b.textContent === '人员管理') ||
+                (hash === 'semester' && b.textContent === '学期配置')) {
+                b.classList.add('active');
+            }
+        });
+        if (hash === 'students') loadStudents();
+        if (hash === 'semester') loadSemester();
+    }
+});
+
+/* ==================== Utilities ==================== */
+function showMsg(elId, msg, type) {
+    const el = document.getElementById(elId);
+    el.textContent = msg;
+    el.className = 'status-msg ' + type;
+    setTimeout(() => { el.textContent = ''; }, 4000);
+}
+
+function escapeHtml(str) {
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+}
+
+function escapeAttr(str) {
+    return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/* ==================== 数据管理 ==================== */
+const recordsBody = document.getElementById('recordsBody');
+const recordCount = document.getElementById('recordCount');
+
+function loadRecords() {
+    const date = document.getElementById('filterDate').value;
+    const student = document.getElementById('filterStudent').value;
+
+    const params = new URLSearchParams();
+    if (date) params.append('date', date);
+    if (student) params.append('student', student);
+
+    fetch('/api/manage/records?' + params.toString())
+        .then(r => r.json())
+        .then(records => {
+            recordCount.textContent = `共 ${records.length} 条记录`;
+            if (records.length === 0) {
+                recordsBody.innerHTML = '<tr><td colspan="6" class="empty-state">没有找到记录</td></tr>';
+                return;
+            }
+            recordsBody.innerHTML = '';
+            records.forEach(rec => recordsBody.appendChild(createRow(rec)));
+        })
+        .catch(() => showMsg('manageMsg', '加载失败', 'error'));
+}
+
+function createRow(rec) {
+    const tr = document.createElement('tr');
+    tr.dataset.id = rec.id;
+    tr.innerHTML = `
+        <td>${escapeHtml(rec.name)}</td>
+        <td>${rec.date}</td>
+        <td class="cell-subject">${escapeHtml(rec.subject || '')}</td>
+        <td class="cell-content">${escapeHtml(rec.content || '')}</td>
+        <td class="cell-remark">${rec.remark ? '<span class="remark-tag">' + escapeHtml(rec.remark) + '</span>' : ''}</td>
+        <td>
+            <div class="actions-cell">
+                <button class="btn btn-ghost btn-sm" onclick="startEdit(this)">编辑</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteRecord(${rec.id}, this)">删除</button>
+            </div>
+        </td>
+    `;
+    return tr;
+}
+
+function startEdit(btn) {
+    const tr = btn.closest('tr');
+    const id = tr.dataset.id;
+    const subjectCell = tr.querySelector('.cell-subject');
+    const contentCell = tr.querySelector('.cell-content');
+    const remarkCell = tr.querySelector('.cell-remark');
+
+    const oldSubject = subjectCell.textContent.trim();
+    const oldContent = contentCell.textContent.trim();
+    const remarkTag = remarkCell.querySelector('.remark-tag');
+    const oldRemark = remarkTag ? remarkTag.textContent.trim() : '';
+
+    subjectCell.innerHTML = `<input type="text" value="${escapeAttr(oldSubject)}" class="edit-subject">`;
+    contentCell.innerHTML = `<input type="text" value="${escapeAttr(oldContent)}" class="edit-content">`;
+    remarkCell.innerHTML = `<input type="text" value="${escapeAttr(oldRemark)}" class="edit-remark" placeholder="如: 请假">`;
+
+    tr.querySelector('.actions-cell').innerHTML = `
+        <button class="btn btn-success btn-sm" onclick="saveEdit(${id}, this)">保存</button>
+        <button class="btn btn-ghost btn-sm" onclick="loadRecords()">取消</button>
+    `;
+    subjectCell.querySelector('input').focus();
+}
+
+function saveEdit(id, btn) {
+    const tr = btn.closest('tr');
+    const subject = tr.querySelector('.edit-subject').value.trim();
+    const content = tr.querySelector('.edit-content').value.trim();
+    const remark = tr.querySelector('.edit-remark').value.trim();
+
+    if (!subject) { showMsg('manageMsg', '学科不能为空', 'error'); return; }
+
+    btn.disabled = true;
+    btn.textContent = '保存中...';
+
+    fetch(`/api/manage/records/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subject, content, remark })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) { showMsg('manageMsg', '已保存', 'success'); loadRecords(); }
+        else showMsg('manageMsg', '保存失败', 'error');
+    })
+    .catch(() => showMsg('manageMsg', '网络错误', 'error'));
+}
+
+function deleteRecord(id, btn) {
+    if (!confirm('确认删除这条记录？')) return;
+    btn.disabled = true;
+    fetch(`/api/manage/records/${id}`, { method: 'DELETE' })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                showMsg('manageMsg', '已删除', 'success');
+                const tr = btn.closest('tr');
+                tr.style.transition = 'opacity 0.3s';
+                tr.style.opacity = '0';
+                setTimeout(() => {
+                    tr.remove();
+                    const remaining = recordsBody.querySelectorAll('tr').length;
+                    recordCount.textContent = `共 ${remaining} 条记录`;
+                    if (remaining === 0) recordsBody.innerHTML = '<tr><td colspan="6" class="empty-state">没有找到记录</td></tr>';
+                }, 300);
+            }
+        })
+        .catch(() => showMsg('manageMsg', '删除失败', 'error'));
+}
+
+function clearFilters() {
+    document.getElementById('filterDate').value = '';
+    document.getElementById('filterStudent').value = '';
+    recordCount.textContent = '';
+    recordsBody.innerHTML = '<tr><td colspan="6" class="empty-state">请选择筛选条件后点击查询</td></tr>';
+}
+
+// Default to today's date
+document.getElementById('filterDate').value = new Date().toISOString().split('T')[0];
+
+// Enter key support for manage filters
+document.querySelectorAll('#tab-manage .form-input').forEach(input => {
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') loadRecords(); });
+});
+
+/* ==================== 人员管理 ==================== */
+let allStudents = [];
+
+function loadStudents() {
+    fetch('/api/students')
+        .then(r => r.json())
+        .then(data => {
+            allStudents = data;
+            renderStudentTable();
+        });
+}
+
+function renderStudentTable() {
+    const keyword = document.getElementById('searchInput').value.trim().toLowerCase();
+    const filtered = allStudents.filter(s => {
+        if (!keyword) return true;
+        return (s.name && s.name.toLowerCase().includes(keyword)) ||
+               (s.student_no && s.student_no.toLowerCase().includes(keyword));
+    });
+
+    const tbody = document.getElementById('studentBody');
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="empty-state">暂无学生数据</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = filtered.map(s => `
+        <tr class="${s.excluded ? 'row-excluded' : ''}">
+            <td>${s.student_no || '-'}</td>
+            <td>${s.name}</td>
+            <td>${s.gender || '-'}</td>
+            <td><span class="count-badge">${s.record_count}</span></td>
+            <td>
+                <span class="badge ${s.excluded ? 'badge-excluded' : 'badge-active'}">
+                    ${s.excluded ? '已排除' : '正常'}
+                </span>
+            </td>
+            <td>
+                <div class="actions-cell">
+                    <button class="toggle-btn" onclick="toggleExcluded(${s.id})">
+                        ${s.excluded ? '取消排除' : '排除'}
+                    </button>
+                    <button class="btn btn-danger btn-sm" onclick="deleteStudent(${s.id}, '${escapeAttr(s.name)}', ${s.record_count})">删除</button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function addStudent() {
+    const name = document.getElementById('newName').value.trim();
+    const student_no = document.getElementById('newNo').value.trim();
+    const gender = document.getElementById('newGender').value;
+
+    if (!name) { showMsg('addMsg', '请输入学生姓名', 'error'); return; }
+
+    fetch('/api/students', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, student_no, gender })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showMsg('addMsg', `已添加学生: ${name}`, 'success');
+            document.getElementById('newName').value = '';
+            document.getElementById('newNo').value = '';
+            document.getElementById('newGender').value = '';
+            loadStudents();
+        } else {
+            showMsg('addMsg', data.message || '添加失败', 'error');
+        }
+    })
+    .catch(() => showMsg('addMsg', '添加失败', 'error'));
+}
+
+function toggleExcluded(id) {
+    fetch(`/api/students/${id}/toggle-excluded`, { method: 'PUT' })
+        .then(r => r.json())
+        .then(data => { if (data.success) loadStudents(); });
+}
+
+function deleteStudent(id, name, recordCount) {
+    let msg = `确定删除学生 ${name} 吗？`;
+    if (recordCount > 0) {
+        msg = `学生 ${name} 有 ${recordCount} 条作业记录，删除后所有记录将一并清除。\n\n确定要删除吗？`;
+    }
+    if (!confirm(msg)) return;
+
+    fetch(`/api/students/${id}`, { method: 'DELETE' })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) loadStudents();
+            else alert(data.message || '删除失败');
+        });
+}
+
+/* ==================== 学期配置 ==================== */
+let semesterLoaded = false;
+
+function loadSemester() {
+    fetch('/api/semester')
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('semesterName').value = data.semester_name || '';
+            document.getElementById('semesterStart').value = data.semester_start || '';
+            document.getElementById('semesterEnd').value = data.semester_end || '';
+            semesterLoaded = true;
+        });
+}
+
+function saveSemester() {
+    const payload = {
+        semester_name: document.getElementById('semesterName').value.trim(),
+        semester_start: document.getElementById('semesterStart').value,
+        semester_end: document.getElementById('semesterEnd').value,
+    };
+
+    if (!payload.semester_start || !payload.semester_end) {
+        showMsg('semesterMsg', '请填写开学和结束日期', 'error');
+        return;
+    }
+
+    fetch('/api/semester', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) showMsg('semesterMsg', '配置已保存', 'success');
+    })
+    .catch(() => showMsg('semesterMsg', '保存失败', 'error'));
+}
+</script>
+</body>
+</html>

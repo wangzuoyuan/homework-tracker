@@ -7,7 +7,25 @@ from collections import defaultdict
 from tracker import export_daily_report
 
 app = Flask(__name__)
-DB_PATH = '/Users/monster/Documents/Monster/班主任/作业跟踪/homework.db'
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(BASE_DIR, "homework.db")
+
+
+def ensure_excluded_column():
+    """确保 students 表有 excluded 列"""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.execute("PRAGMA table_info(students)")
+    columns = [row[1] for row in cursor.fetchall()]
+    if 'excluded' not in columns:
+        conn.execute("ALTER TABLE students ADD COLUMN excluded INTEGER DEFAULT 0")
+        # 迁移硬编码的排除名单
+        for name in ['王伦锋', '李说从', '张歆怡']:
+            conn.execute("UPDATE students SET excluded = 1 WHERE name = ?", (name,))
+        conn.commit()
+    conn.close()
+
+
+ensure_excluded_column()
 
 SUBJECT_GROUPS = [
     ("语文", ["语文"]),
@@ -77,7 +95,12 @@ def parse_homework_item(item):
     return (item, None, None)
 
 
-EXCLUDED_STUDENTS = ['王伦锋', '李说从', '张歆怡']
+def get_excluded_students():
+    """从数据库获取排除名单"""
+    conn = get_db_connection()
+    rows = conn.execute("SELECT name FROM students WHERE excluded = 1").fetchall()
+    conn.close()
+    return [row['name'] for row in rows]
 
 
 def get_semester_config():
@@ -110,9 +133,11 @@ def get_filter_conditions():
         conditions.append("s.name LIKE ?")
         params.append(f"%{student}%")
     else:
-        placeholders = ','.join(['?'] * len(EXCLUDED_STUDENTS))
-        conditions.append(f"s.name NOT IN ({placeholders})")
-        params.extend(EXCLUDED_STUDENTS)
+        excluded = get_excluded_students()
+        if excluded:
+            placeholders = ','.join(['?'] * len(excluded))
+            conditions.append(f"s.name NOT IN ({placeholders})")
+            params.extend(excluded)
 
     if subject:
         # 找到该学科对应的所有关键词，匹配原始 subject 字段
@@ -238,60 +263,89 @@ def add_records():
     data = request.json
     raw_text = data.get('raw_text', '')
     date = data.get('date', datetime.now().strftime('%Y-%m-%d'))
-    
+    mode = data.get('mode', 'by_student')  # 'by_student' or 'by_subject'
+
     if not raw_text:
         return jsonify({"success": False, "message": "请输入记录内容"}), 400
 
     conn = get_db_connection()
     cursor = conn.cursor()
-    
+
     lines = [l.strip() for l in raw_text.split('\n') if l.strip()]
     added_count = 0
     errors = []
-    
-    for line in lines:
-        # Match: Name: Subject, Subject OR Name：Subject、Subject
-        match = re.split(r'[:：]', line, maxsplit=1)
-        if len(match) < 2:
-            errors.append(f"格式错误: {line}")
-            continue
-            
-        name = match[0].strip()
-        subjects_raw = match[1].strip()
-        
-        # Find student ID
-        cursor.execute("SELECT id FROM students WHERE name = ?", (name,))
-        student_row = cursor.fetchone()
 
-        if not student_row:
-            errors.append(f"找不到学生: {name}")
-            continue
+    if mode == 'by_subject':
+        # 按科目录入：数学：卜一轩、张曦、吴辰轩
+        for line in lines:
+            match = re.split(r'[:：]', line, maxsplit=1)
+            if len(match) < 2:
+                errors.append(f"格式错误: {line}")
+                continue
 
-        student_id = student_row['id']
+            subject_raw = match[0].strip()
+            names_raw = match[1].strip()
 
-        # Split by comma/separator and parse each item
-        items = [s.strip() for s in re.split(r'[，,；;、\s]+', subjects_raw) if s.strip()]
-
-        for item in items:
-            parsed = parse_homework_item(item)
+            parsed = parse_homework_item(subject_raw)
             if not parsed:
+                errors.append(f"无法识别科目: {subject_raw}")
                 continue
             subj, content, remark = parsed
-            cursor.execute(
-                "INSERT INTO records (student_id, date, subject, content, remark) VALUES (?, ?, ?, ?, ?)",
-                (student_id, date, subj, content, remark)
-            )
-            added_count += 1
-            
+
+            names = [n.strip() for n in re.split(r'[，,；;、\s]+', names_raw) if n.strip()]
+            for name in names:
+                cursor.execute("SELECT id FROM students WHERE name = ?", (name,))
+                student_row = cursor.fetchone()
+                if not student_row:
+                    errors.append(f"找不到学生: {name}")
+                    continue
+                cursor.execute(
+                    "INSERT INTO records (student_id, date, subject, content, remark) VALUES (?, ?, ?, ?, ?)",
+                    (student_row['id'], date, subj, content, remark)
+                )
+                added_count += 1
+    else:
+        # 按学生录入：张三: 英语粉书、数学
+        for line in lines:
+            match = re.split(r'[:：]', line, maxsplit=1)
+            if len(match) < 2:
+                errors.append(f"格式错误: {line}")
+                continue
+
+            name = match[0].strip()
+            subjects_raw = match[1].strip()
+
+            cursor.execute("SELECT id FROM students WHERE name = ?", (name,))
+            student_row = cursor.fetchone()
+
+            if not student_row:
+                errors.append(f"找不到学生: {name}")
+                continue
+
+            student_id = student_row['id']
+
+            items = [s.strip() for s in re.split(r'[，,；;、\s]+', subjects_raw) if s.strip()]
+
+            for item in items:
+                parsed = parse_homework_item(item)
+                if not parsed:
+                    continue
+                subj, content, remark = parsed
+                cursor.execute(
+                    "INSERT INTO records (student_id, date, subject, content, remark) VALUES (?, ?, ?, ?, ?)",
+                    (student_id, date, subj, content, remark)
+                )
+                added_count += 1
+
     conn.commit()
     conn.close()
-    
+
     # Trigger export
     if added_count > 0:
         export_daily_report(date)
-        
+
     return jsonify({
-        "success": True, 
+        "success": True,
         "added_count": added_count,
         "errors": errors
     })
@@ -304,6 +358,11 @@ def student_page(name):
 @app.route('/manage')
 def manage():
     return render_template('manage.html')
+
+
+@app.route('/config')
+def config_page():
+    return render_template('config.html')
 
 
 @app.route('/api/manage/records')
@@ -397,5 +456,80 @@ def api_set_semester():
     return jsonify({"success": True})
 
 
+@app.route('/students')
+def students_page():
+    return render_template('students.html')
+
+
+@app.route('/api/students')
+def api_list_students():
+    conn = get_db_connection()
+    rows = conn.execute(
+        "SELECT s.id, s.student_no, s.name, s.gender, s.excluded, "
+        "(SELECT COUNT(*) FROM records WHERE student_id = s.id) as record_count "
+        "FROM students s ORDER BY s.excluded ASC, s.student_no ASC"
+    ).fetchall()
+    conn.close()
+    return jsonify([dict(row) for row in rows])
+
+
+@app.route('/api/students', methods=['POST'])
+def api_add_student():
+    data = request.json
+    name = data.get('name', '').strip()
+    student_no = data.get('student_no', '').strip()
+    gender = data.get('gender', '').strip()
+
+    if not name:
+        return jsonify({"success": False, "message": "姓名不能为空"}), 400
+
+    conn = get_db_connection()
+    existing = conn.execute("SELECT id FROM students WHERE name = ?", (name,)).fetchone()
+    if existing:
+        conn.close()
+        return jsonify({"success": False, "message": f"学生 {name} 已存在"}), 400
+
+    conn.execute(
+        "INSERT INTO students (student_no, name, gender, excluded) VALUES (?, ?, ?, 0)",
+        (student_no or None, name, gender or None)
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({"success": True})
+
+
+@app.route('/api/students/<int:student_id>', methods=['DELETE'])
+def api_delete_student(student_id):
+    conn = get_db_connection()
+    # 获取关联记录的日期（用于重新导出）
+    dates = conn.execute("SELECT DISTINCT date FROM records WHERE student_id = ?", (student_id,)).fetchall()
+    affected_dates = [row['date'] for row in dates]
+
+    conn.execute("DELETE FROM records WHERE student_id = ?", (student_id,))
+    conn.execute("DELETE FROM students WHERE id = ?", (student_id,))
+    conn.commit()
+    conn.close()
+
+    for d in affected_dates:
+        export_daily_report(d)
+
+    return jsonify({"success": True, "deleted_records": len(affected_dates)})
+
+
+@app.route('/api/students/<int:student_id>/toggle-excluded', methods=['PUT'])
+def api_toggle_excluded(student_id):
+    conn = get_db_connection()
+    row = conn.execute("SELECT excluded FROM students WHERE id = ?", (student_id,)).fetchone()
+    if not row:
+        conn.close()
+        return jsonify({"success": False, "message": "学生不存在"}), 404
+    new_val = 0 if row['excluded'] else 1
+    conn.execute("UPDATE students SET excluded = ? WHERE id = ?", (new_val, student_id))
+    conn.commit()
+    conn.close()
+    return jsonify({"success": True, "excluded": new_val})
+
+
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    port = int(os.environ.get("BOARD_PORT", "5050"))
+    app.run(debug=True, port=port)

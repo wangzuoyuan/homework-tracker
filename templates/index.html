@@ -272,7 +272,7 @@
 
     <div class="dashboard-header">
         <h1>📊 全局作业监控看板</h1>
-        <p>数据分析 · 班级视图 · <a href="/manage" style="color: #94a3b8; text-decoration: none; border-bottom: 1px dashed #94a3b8;">数据管理</a> · <a href="/settings" style="color: #94a3b8; text-decoration: none; border-bottom: 1px dashed #94a3b8;">学期配置</a></p>
+        <p>数据分析 · 班级视图 · <a href="/config" style="color: #94a3b8; text-decoration: none; border-bottom: 1px dashed #94a3b8;">系统配置</a></p>
     </div>
 
     <!-- 快速录入区 -->
@@ -284,6 +284,10 @@
                         🖊️ 快速录入缺交记录
                     </h2>
                     <div style="display: flex; align-items: center; gap: 12px;">
+                        <div class="mode-switch">
+                            <button id="modeByStudent" class="mode-btn active" onclick="switchMode('by_student')">按学生</button>
+                            <button id="modeBySubject" class="mode-btn" onclick="switchMode('by_subject')">按科目</button>
+                        </div>
                         <span class="helper-text">录入日期:</span>
                         <input type="date" id="recordDate" class="filter-input">
                     </div>
@@ -407,6 +411,36 @@
         .helper-text {
             font-size: 0.85rem;
             color: var(--text-secondary);
+        }
+
+        .mode-switch {
+            display: flex;
+            background: rgba(15, 23, 42, 0.6);
+            border-radius: 8px;
+            border: 1px solid var(--card-border);
+            overflow: hidden;
+        }
+
+        .mode-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            padding: 6px 14px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        .mode-btn.active {
+            background: var(--accent);
+            color: white;
+        }
+
+        .mode-btn:hover:not(.active) {
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.05);
         }
     </style>
 
@@ -666,25 +700,40 @@
                 });
         }
 
+        // 录入模式
+        let recordMode = 'by_student';
+
+        function switchMode(mode) {
+            recordMode = mode;
+            document.getElementById('modeByStudent').classList.toggle('active', mode === 'by_student');
+            document.getElementById('modeBySubject').classList.toggle('active', mode === 'by_subject');
+            const textarea = document.getElementById('recordText');
+            if (mode === 'by_subject') {
+                textarea.placeholder = '格式例：\n数学：卜一轩、张曦、吴辰轩\n语文订正：徐晨、姚雨琛';
+            } else {
+                textarea.placeholder = '格式例：\n张三: 英语粉书\n李四: 数学课本, 物理笔记\n王五：全科';
+            }
+        }
+
         // 录入功能实现
         function submitRecords() {
             const rawText = document.getElementById('recordText').value;
             const date = document.getElementById('recordDate').value;
             const statusEl = document.getElementById('recordStatus');
             const btn = document.getElementById('submitBtn');
-            
+
             if (!rawText.trim()) {
                 showStatus("请输入记录内容", "error");
                 return;
             }
-            
+
             btn.disabled = true;
             btn.innerText = "提交中...";
-            
+
             fetch('/api/records', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ raw_text: rawText, date: date })
+                body: JSON.stringify({ raw_text: rawText, date: date, mode: recordMode })
             })
             .then(res => res.json())
             .then(data => {
