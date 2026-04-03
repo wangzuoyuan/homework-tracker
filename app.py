@@ -27,6 +27,26 @@ def ensure_excluded_column():
 
 ensure_excluded_column()
 
+
+def ensure_special_records_table():
+    """确保 special_records 表存在"""
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS special_records (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            student_id INTEGER NOT NULL,
+            date TEXT NOT NULL,
+            type TEXT NOT NULL,
+            note TEXT,
+            FOREIGN KEY (student_id) REFERENCES students(id)
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+
+ensure_special_records_table()
+
 SUBJECT_GROUPS = [
     ("语文", ["语文"]),
     ("数学", ["数学"]),
@@ -528,6 +548,93 @@ def api_toggle_excluded(student_id):
     conn.commit()
     conn.close()
     return jsonify({"success": True, "excluded": new_val})
+
+
+@app.route('/api/special_records', methods=['POST'])
+def add_special_records():
+    data = request.json
+    raw_text = data.get('raw_text', '')
+    date = data.get('date', datetime.now().strftime('%Y-%m-%d'))
+    mode = data.get('mode', 'by_student')  # 'by_student' or 'by_type'
+
+    if not raw_text:
+        return jsonify({"success": False, "message": "请输入记录内容"}), 400
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    lines = [l.strip() for l in raw_text.split('\n') if l.strip()]
+    added_count = 0
+    errors = []
+
+    for line in lines:
+        match = re.split(r'[:：]', line, maxsplit=1)
+        if len(match) < 2:
+            errors.append(f"格式错误: {line}")
+            continue
+
+        left = match[0].strip()
+        right = match[1].strip()
+
+        if mode == 'by_type':
+            # 格式：情况：学生1、学生2
+            record_type = left
+            names = [n.strip() for n in re.split(r'[，,；;、\s]+', right) if n.strip()]
+            for name in names:
+                cursor.execute("SELECT id FROM students WHERE name = ?", (name,))
+                student_row = cursor.fetchone()
+                if not student_row:
+                    errors.append(f"找不到学生: {name}")
+                    continue
+                cursor.execute(
+                    "INSERT INTO special_records (student_id, date, type, note) VALUES (?, ?, ?, ?)",
+                    (student_row['id'], date, record_type, None)
+                )
+                added_count += 1
+        else:
+            # 格式：学生：情况（可以逗号分隔多个情况）
+            name = left
+            cursor.execute("SELECT id FROM students WHERE name = ?", (name,))
+            student_row = cursor.fetchone()
+            if not student_row:
+                errors.append(f"找不到学生: {name}")
+                continue
+            types = [t.strip() for t in re.split(r'[，,；;、\s]+', right) if t.strip()]
+            for record_type in types:
+                cursor.execute(
+                    "INSERT INTO special_records (student_id, date, type, note) VALUES (?, ?, ?, ?)",
+                    (student_row['id'], date, record_type, None)
+                )
+                added_count += 1
+
+    conn.commit()
+    conn.close()
+
+    return jsonify({"success": True, "added_count": added_count, "errors": errors})
+
+
+@app.route('/api/special_records', methods=['GET'])
+def get_special_records():
+    date = request.args.get('date', datetime.now().strftime('%Y-%m-%d'))
+    conn = get_db_connection()
+    rows = conn.execute(
+        """SELECT sr.id, s.name, sr.date, sr.type, sr.note
+           FROM special_records sr JOIN students s ON sr.student_id = s.id
+           WHERE sr.date = ?
+           ORDER BY sr.type, s.name""",
+        (date,)
+    ).fetchall()
+    conn.close()
+    return jsonify([dict(row) for row in rows])
+
+
+@app.route('/api/special_records/<int:record_id>', methods=['DELETE'])
+def delete_special_record(record_id):
+    conn = get_db_connection()
+    conn.execute("DELETE FROM special_records WHERE id = ?", (record_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({"success": True})
 
 
 if __name__ == '__main__':

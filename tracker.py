@@ -81,7 +81,7 @@ def export_daily_report(target_date):
     except ImportError:
         print("Pandas not installed. Cannot export to Excel. Please run: pip install pandas openpyxl")
         return
-        
+
     conn = sqlite3.connect(DB_FILE)
     query = '''
         SELECT students.student_no as '学号', students.name as '姓名', records.subject as '缺交科目', records.content as '说明', records.remark as '特殊情况'
@@ -90,11 +90,23 @@ def export_daily_report(target_date):
         WHERE records.date = ?
     '''
     df = pd.read_sql_query(query, conn, params=(target_date,))
+
+    # Query special records for this date
+    special_query = '''
+        SELECT students.student_no as '学号', students.name as '姓名', special_records.type as '特殊情况'
+        FROM special_records
+        JOIN students ON special_records.student_id = students.id
+        WHERE special_records.date = ?
+    '''
+    try:
+        special_df = pd.read_sql_query(special_query, conn, params=(target_date,))
+    except Exception:
+        special_df = pd.DataFrame(columns=['学号', '姓名', '特殊情况'])
     conn.close()
-    
-    if df.empty:
+
+    if df.empty and special_df.empty:
         return
-        
+
     # Group by student to merge subjects (deduplicated)
     def unique_join(series):
         seen = []
@@ -110,11 +122,35 @@ def export_daily_report(target_date):
                 seen.append(v)
         return '、'.join(seen)
 
-    grouped_df = df.groupby(['学号', '姓名']).agg({
-        '缺交科目': unique_join,
-        '说明': nonempty_join,
-        '特殊情况': nonempty_join,
-    }).reset_index()
+    if not df.empty:
+        grouped_df = df.groupby(['学号', '姓名']).agg({
+            '缺交科目': unique_join,
+            '说明': nonempty_join,
+            '特殊情况': nonempty_join,
+        }).reset_index()
+    else:
+        grouped_df = pd.DataFrame(columns=['学号', '姓名', '缺交科目', '说明', '特殊情况'])
+
+    # Merge special records into grouped_df
+    if not special_df.empty:
+        special_grouped = special_df.groupby(['学号', '姓名'])['特殊情况'].apply(
+            lambda s: '、'.join(v for v in s.dropna() if v)
+        ).reset_index()
+        special_grouped.columns = ['学号', '姓名', '特殊情况_special']
+
+        grouped_df = grouped_df.merge(special_grouped, on=['学号', '姓名'], how='outer')
+
+        def merge_special(row):
+            parts = []
+            if pd.notna(row.get('特殊情况')) and row['特殊情况']:
+                parts.append(row['特殊情况'])
+            if pd.notna(row.get('特殊情况_special')) and row['特殊情况_special']:
+                parts.append(row['特殊情况_special'])
+            return '、'.join(parts)
+
+        grouped_df['特殊情况'] = grouped_df.apply(merge_special, axis=1)
+        grouped_df = grouped_df.drop(columns=['特殊情况_special'])
+        grouped_df = grouped_df.fillna('')
     
     # Sort by student_no
     try:
