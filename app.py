@@ -115,6 +115,16 @@ def parse_homework_item(item):
     return (item, None, None)
 
 
+def is_subject_item(item):
+    """Returns True if item contains a recognized subject keyword."""
+    item = item.strip()
+    for _, keywords in SUBJECT_GROUPS:
+        for keyword in keywords:
+            if keyword in item:
+                return True
+    return False
+
+
 def get_excluded_students():
     """从数据库获取排除名单"""
     conn = get_db_connection()
@@ -296,7 +306,7 @@ def add_records():
     errors = []
 
     if mode == 'by_subject':
-        # 按科目录入：数学：卜一轩、张曦、吴辰轩
+        # 按科目/情况录入：数学：卜一轩、张曦 或 迟到：卜一轩、吴辰轩
         for line in lines:
             match = re.split(r'[:：]', line, maxsplit=1)
             if len(match) < 2:
@@ -305,27 +315,40 @@ def add_records():
 
             subject_raw = match[0].strip()
             names_raw = match[1].strip()
-
-            parsed = parse_homework_item(subject_raw)
-            if not parsed:
-                errors.append(f"无法识别科目: {subject_raw}")
-                continue
-            subj, content, remark = parsed
-
             names = [n.strip() for n in re.split(r'[，,；;、\s]+', names_raw) if n.strip()]
-            for name in names:
-                cursor.execute("SELECT id FROM students WHERE name = ?", (name,))
-                student_row = cursor.fetchone()
-                if not student_row:
-                    errors.append(f"找不到学生: {name}")
+
+            if not is_subject_item(subject_raw):
+                # 非科目关键词 → 作为特殊情况类型保存
+                for name in names:
+                    cursor.execute("SELECT id FROM students WHERE name = ?", (name,))
+                    student_row = cursor.fetchone()
+                    if not student_row:
+                        errors.append(f"找不到学生: {name}")
+                        continue
+                    cursor.execute(
+                        "INSERT INTO special_records (student_id, date, type, note) VALUES (?, ?, ?, ?)",
+                        (student_row['id'], date, subject_raw, None)
+                    )
+                    added_count += 1
+            else:
+                parsed = parse_homework_item(subject_raw)
+                if not parsed:
+                    errors.append(f"无法识别科目: {subject_raw}")
                     continue
-                cursor.execute(
-                    "INSERT INTO records (student_id, date, subject, content, remark) VALUES (?, ?, ?, ?, ?)",
-                    (student_row['id'], date, subj, content, remark)
-                )
-                added_count += 1
+                subj, content, remark = parsed
+                for name in names:
+                    cursor.execute("SELECT id FROM students WHERE name = ?", (name,))
+                    student_row = cursor.fetchone()
+                    if not student_row:
+                        errors.append(f"找不到学生: {name}")
+                        continue
+                    cursor.execute(
+                        "INSERT INTO records (student_id, date, subject, content, remark) VALUES (?, ?, ?, ?, ?)",
+                        (student_row['id'], date, subj, content, remark)
+                    )
+                    added_count += 1
     else:
-        # 按学生录入：张三: 英语粉书、数学
+        # 按学生录入：张三: 英语粉书、数学 或 卜一轩：请假、迟到
         for line in lines:
             match = re.split(r'[:：]', line, maxsplit=1)
             if len(match) < 2:
@@ -343,19 +366,26 @@ def add_records():
                 continue
 
             student_id = student_row['id']
-
             items = [s.strip() for s in re.split(r'[，,；;、\s]+', subjects_raw) if s.strip()]
 
             for item in items:
-                parsed = parse_homework_item(item)
-                if not parsed:
-                    continue
-                subj, content, remark = parsed
-                cursor.execute(
-                    "INSERT INTO records (student_id, date, subject, content, remark) VALUES (?, ?, ?, ?, ?)",
-                    (student_id, date, subj, content, remark)
-                )
-                added_count += 1
+                if not is_subject_item(item):
+                    # 非科目关键词 → 特殊情况
+                    cursor.execute(
+                        "INSERT INTO special_records (student_id, date, type, note) VALUES (?, ?, ?, ?)",
+                        (student_id, date, item, None)
+                    )
+                    added_count += 1
+                else:
+                    parsed = parse_homework_item(item)
+                    if not parsed:
+                        continue
+                    subj, content, remark = parsed
+                    cursor.execute(
+                        "INSERT INTO records (student_id, date, subject, content, remark) VALUES (?, ?, ?, ?, ?)",
+                        (student_id, date, subj, content, remark)
+                    )
+                    added_count += 1
 
     conn.commit()
     conn.close()

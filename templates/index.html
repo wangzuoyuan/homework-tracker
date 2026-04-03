@@ -292,50 +292,19 @@
                         <input type="date" id="recordDate" class="filter-input">
                     </div>
                 </div>
-                <textarea id="recordText" class="record-textarea" placeholder="格式例：&#10;张三: 英语粉书&#10;李四: 数学课本, 物理笔记&#10;王五：全科"></textarea>
+                <textarea id="recordText" class="record-textarea" placeholder="缺交格式例：&#10;张三: 英语粉书&#10;李四: 数学课本, 物理笔记&#10;特殊情况例：&#10;卜一轩：请假&#10;迟到：卜一轩、吴辰轩"></textarea>
                 <div class="record-actions">
                     <div id="recordStatus" style="margin-right: auto; font-size: 0.9rem;"></div>
                     <button onclick="submitRecords()" id="submitBtn" class="filter-btn" style="padding: 10px 24px;">保存记录</button>
                     <button onclick="document.getElementById('recordText').value=''" class="filter-btn" style="background: rgba(255,255,255,0.1); color: var(--text-main);">清空</button>
                 </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 特殊记录录入区 -->
-    <div class="grid-container" style="margin-bottom: 24px;">
-        <div class="card record-entry-card" id="specialRecordCard">
-            <div class="record-form">
-                <div class="record-form-header">
-                    <h2 style="margin: 0; font-size: 1.25rem; display: flex; align-items: center; gap: 8px;">
-                        🚨 特殊情况记录
-                    </h2>
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <div class="mode-switch">
-                            <button id="specialModeByStudent" class="mode-btn active" onclick="switchSpecialMode('by_student')">按学生</button>
-                            <button id="specialModeByType" class="mode-btn" onclick="switchSpecialMode('by_type')">按情况</button>
-                        </div>
-                        <span class="helper-text">日期:</span>
-                        <input type="date" id="specialRecordDate" class="filter-input">
-                    </div>
-                </div>
-                <textarea id="specialRecordText" class="record-textarea" placeholder="格式例（按学生）：&#10;卜一轩：请假&#10;吴辰轩：迟到、早退" style="height: 90px;"></textarea>
-                <div class="record-actions">
-                    <div id="specialRecordStatus" style="margin-right: auto; font-size: 0.9rem;"></div>
-                    <button onclick="submitSpecialRecords()" id="specialSubmitBtn" class="filter-btn" style="padding: 10px 24px;">保存特殊记录</button>
-                    <button onclick="document.getElementById('specialRecordText').value=''" class="filter-btn" style="background: rgba(255,255,255,0.1); color: var(--text-main);">清空</button>
-                </div>
                 <!-- 当日特殊记录列表 -->
-                <div id="specialRecordsList" style="margin-top: 8px;"></div>
+                <div id="specialRecordsList" style="margin-top: 8px; border-top: 1px solid rgba(255,255,255,0.07); padding-top: 8px; display: none;"></div>
             </div>
         </div>
     </div>
 
     <style>
-        #specialRecordCard {
-            border-color: rgba(245, 158, 11, 0.35);
-            background: linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(25, 20, 10, 0.7));
-        }
         .special-tag {
             display: inline-flex;
             align-items: center;
@@ -358,9 +327,7 @@
             background: none;
         }
         .special-tag .del-btn:hover { color: #ef4444; }
-        .special-type-group {
-            margin-bottom: 8px;
-        }
+        .special-type-group { margin-bottom: 8px; }
         .special-type-label {
             font-size: 0.78rem;
             color: var(--text-secondary);
@@ -812,8 +779,8 @@
                     }
                     showStatus(msg, "success");
                     document.getElementById('recordText').value = '';
-                    // 重新加载仪表盘数据
                     loadDashboardData();
+                    loadSpecialRecords();
                 } else {
                     showStatus(data.message || "录入失败", "error");
                 }
@@ -849,94 +816,28 @@
             loadDashboardData();
         }
 
-        // ========== 特殊记录功能 ==========
-        let specialMode = 'by_student';
-
-        function switchSpecialMode(mode) {
-            specialMode = mode;
-            document.getElementById('specialModeByStudent').classList.toggle('active', mode === 'by_student');
-            document.getElementById('specialModeByType').classList.toggle('active', mode === 'by_type');
-            const textarea = document.getElementById('specialRecordText');
-            if (mode === 'by_type') {
-                textarea.placeholder = '格式例（按情况）：\n迟到：卜一轩、吴辰轩\n请假：张曦';
-            } else {
-                textarea.placeholder = '格式例（按学生）：\n卜一轩：请假\n吴辰轩：迟到、早退';
-            }
-        }
-
-        function submitSpecialRecords() {
-            const rawText = document.getElementById('specialRecordText').value;
-            const date = document.getElementById('specialRecordDate').value;
-            const btn = document.getElementById('specialSubmitBtn');
-
-            if (!rawText.trim()) {
-                showSpecialStatus('请输入记录内容', 'error');
-                return;
-            }
-
-            btn.disabled = true;
-            btn.innerText = '提交中...';
-
-            fetch('/api/special_records', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ raw_text: rawText, date: date, mode: specialMode })
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    let msg = `成功录入 ${data.added_count} 条特殊记录`;
-                    if (data.errors && data.errors.length > 0) {
-                        msg += ` (忽略 ${data.errors.length} 条错误)`;
-                        console.warn('Special record errors:', data.errors);
-                    }
-                    showSpecialStatus(msg, 'success');
-                    document.getElementById('specialRecordText').value = '';
-                    loadSpecialRecords();
-                } else {
-                    showSpecialStatus(data.message || '录入失败', 'error');
-                }
-            })
-            .catch(() => showSpecialStatus('网络错误，请稍后重试', 'error'))
-            .finally(() => {
-                btn.disabled = false;
-                btn.innerText = '保存特殊记录';
-            });
-        }
-
-        function showSpecialStatus(msg, type) {
-            const el = document.getElementById('specialRecordStatus');
-            el.innerText = msg;
-            el.style.color = type === 'error' ? '#ef4444' : '#10b981';
-            setTimeout(() => { el.innerText = ''; }, 5000);
-        }
-
+        // ========== 特殊记录展示 ==========
         function loadSpecialRecords() {
-            const date = document.getElementById('specialRecordDate').value;
+            const date = document.getElementById('recordDate').value;
             fetch(`/api/special_records?date=${date}`)
                 .then(res => res.json())
                 .then(records => {
                     const container = document.getElementById('specialRecordsList');
                     if (!records.length) {
-                        container.innerHTML = '<div style="color: var(--text-secondary); font-size: 0.85rem;">当日无特殊记录</div>';
+                        container.style.display = 'none';
                         return;
                     }
-                    // Group by type
+                    container.style.display = 'block';
                     const groups = {};
                     records.forEach(r => {
                         if (!groups[r.type]) groups[r.type] = [];
                         groups[r.type].push(r);
                     });
-                    let html = '';
+                    let html = '<div style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:6px;">🚨 当日特殊记录</div>';
                     for (const [type, items] of Object.entries(groups)) {
-                        html += `<div class="special-type-group">
-                            <div class="special-type-label">${type}</div>
-                            <div>`;
+                        html += `<div class="special-type-group"><div class="special-type-label">${type}</div><div>`;
                         items.forEach(r => {
-                            html += `<span class="special-tag">
-                                ${r.name}
-                                <button class="del-btn" onclick="deleteSpecialRecord(${r.id})" title="删除">✕</button>
-                            </span>`;
+                            html += `<span class="special-tag">${r.name}<button class="del-btn" onclick="deleteSpecialRecord(${r.id})" title="删除">✕</button></span>`;
                         });
                         html += `</div></div>`;
                     }
@@ -947,20 +848,15 @@
         function deleteSpecialRecord(id) {
             fetch(`/api/special_records/${id}`, { method: 'DELETE' })
                 .then(res => res.json())
-                .then(data => {
-                    if (data.success) loadSpecialRecords();
-                });
+                .then(data => { if (data.success) loadSpecialRecords(); });
         }
 
         // 初始化录入日期为今天
         document.getElementById('recordDate').value = new Date().toISOString().split('T')[0];
-
-        // 初始化特殊记录日期
-        document.getElementById('specialRecordDate').value = new Date().toISOString().split('T')[0];
         loadSpecialRecords();
 
-        // 特殊记录日期切换时重新加载
-        document.getElementById('specialRecordDate').addEventListener('change', loadSpecialRecords);
+        // 日期切换时重新加载特殊记录
+        document.getElementById('recordDate').addEventListener('change', loadSpecialRecords);
 
         // 加载学期配置后初始化看板
         fetch('/api/semester')
