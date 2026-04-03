@@ -298,43 +298,10 @@
                     <button onclick="submitRecords()" id="submitBtn" class="filter-btn" style="padding: 10px 24px;">保存记录</button>
                     <button onclick="document.getElementById('recordText').value=''" class="filter-btn" style="background: rgba(255,255,255,0.1); color: var(--text-main);">清空</button>
                 </div>
-                <!-- 当日特殊记录列表 -->
-                <div id="specialRecordsList" style="margin-top: 8px; border-top: 1px solid rgba(255,255,255,0.07); padding-top: 8px; display: none;"></div>
             </div>
         </div>
     </div>
 
-    <style>
-        .special-tag {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            background: rgba(245, 158, 11, 0.15);
-            border: 1px solid rgba(245, 158, 11, 0.35);
-            border-radius: 20px;
-            padding: 4px 10px;
-            font-size: 0.82rem;
-            color: #fbbf24;
-            margin: 3px;
-        }
-        .special-tag .del-btn {
-            cursor: pointer;
-            color: #94a3b8;
-            font-size: 0.75rem;
-            line-height: 1;
-            padding: 0 2px;
-            border: none;
-            background: none;
-        }
-        .special-tag .del-btn:hover { color: #ef4444; }
-        .special-type-group { margin-bottom: 8px; }
-        .special-type-label {
-            font-size: 0.78rem;
-            color: var(--text-secondary);
-            margin-bottom: 4px;
-            letter-spacing: 0.04em;
-        }
-    </style>
 
     <!-- 筛选控制栏 -->
     <div class="filter-bar card" style="display: flex; gap: 16px; margin: 0 auto 24px auto; max-width: 1600px; padding: 16px 24px;">
@@ -780,7 +747,6 @@
                     showStatus(msg, "success");
                     document.getElementById('recordText').value = '';
                     loadDashboardData();
-                    loadSpecialRecords();
                 } else {
                     showStatus(data.message || "录入失败", "error");
                 }
@@ -816,47 +782,8 @@
             loadDashboardData();
         }
 
-        // ========== 特殊记录展示 ==========
-        function loadSpecialRecords() {
-            const date = document.getElementById('recordDate').value;
-            fetch(`/api/special_records?date=${date}`)
-                .then(res => res.json())
-                .then(records => {
-                    const container = document.getElementById('specialRecordsList');
-                    if (!records.length) {
-                        container.style.display = 'none';
-                        return;
-                    }
-                    container.style.display = 'block';
-                    const groups = {};
-                    records.forEach(r => {
-                        if (!groups[r.type]) groups[r.type] = [];
-                        groups[r.type].push(r);
-                    });
-                    let html = '<div style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:6px;">🚨 当日特殊记录</div>';
-                    for (const [type, items] of Object.entries(groups)) {
-                        html += `<div class="special-type-group"><div class="special-type-label">${type}</div><div>`;
-                        items.forEach(r => {
-                            html += `<span class="special-tag">${r.name}<button class="del-btn" onclick="deleteSpecialRecord(${r.id})" title="删除">✕</button></span>`;
-                        });
-                        html += `</div></div>`;
-                    }
-                    container.innerHTML = html;
-                });
-        }
-
-        function deleteSpecialRecord(id) {
-            fetch(`/api/special_records/${id}`, { method: 'DELETE' })
-                .then(res => res.json())
-                .then(data => { if (data.success) loadSpecialRecords(); });
-        }
-
         // 初始化录入日期为今天
         document.getElementById('recordDate').value = new Date().toISOString().split('T')[0];
-        loadSpecialRecords();
-
-        // 日期切换时重新加载特殊记录
-        document.getElementById('recordDate').addEventListener('change', loadSpecialRecords);
 
         // 加载学期配置后初始化看板
         fetch('/api/semester')
