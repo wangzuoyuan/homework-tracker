@@ -286,20 +286,36 @@ function loadRecords() {
 function createRow(rec) {
     const tr = document.createElement('tr');
     tr.dataset.id = rec.id;
+    tr.dataset.isSpecial = rec.is_special ? '1' : '0';
 
-    tr.innerHTML = `
-        <td>${escapeHtml(rec.name)}</td>
-        <td>${rec.date}</td>
-        <td class="cell-subject">${escapeHtml(rec.subject || '')}</td>
-        <td class="cell-content">${escapeHtml(rec.content || '')}</td>
-        <td class="cell-remark">${rec.remark ? '<span class="remark-tag">' + escapeHtml(rec.remark) + '</span>' : ''}</td>
-        <td>
-            <div class="actions-cell">
-                <button class="btn btn-ghost btn-sm btn-edit" onclick="startEdit(this)">编辑</button>
-                <button class="btn btn-danger btn-sm" onclick="deleteRecord(${rec.id}, this)">删除</button>
-            </div>
-        </td>
-    `;
+    if (rec.is_special) {
+        tr.innerHTML = `
+            <td>${escapeHtml(rec.name)}</td>
+            <td>${rec.date}</td>
+            <td style="color:var(--text-secondary);">—</td>
+            <td style="color:var(--text-secondary);">—</td>
+            <td><span class="remark-tag">${escapeHtml(rec.remark || '')}</span></td>
+            <td>
+                <div class="actions-cell">
+                    <button class="btn btn-danger btn-sm" onclick="deleteSpecialRecord(${rec.id}, this)">删除</button>
+                </div>
+            </td>
+        `;
+    } else {
+        tr.innerHTML = `
+            <td>${escapeHtml(rec.name)}</td>
+            <td>${rec.date}</td>
+            <td class="cell-subject">${escapeHtml(rec.subject || '')}</td>
+            <td class="cell-content">${escapeHtml(rec.content || '')}</td>
+            <td class="cell-remark">${rec.remark ? '<span class="remark-tag">' + escapeHtml(rec.remark) + '</span>' : ''}</td>
+            <td>
+                <div class="actions-cell">
+                    <button class="btn btn-ghost btn-sm btn-edit" onclick="startEdit(this)">编辑</button>
+                    <button class="btn btn-danger btn-sm" onclick="deleteRecord(${rec.id}, this)">删除</button>
+                </div>
+            </td>
+        `;
+    }
     return tr;
 }
 
@@ -366,6 +382,30 @@ function deleteRecord(id, btn) {
 
     btn.disabled = true;
     fetch(`/api/manage/records/${id}`, { method: 'DELETE' })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                showStatus('已删除', 'success');
+                const tr = btn.closest('tr');
+                tr.style.transition = 'opacity 0.3s';
+                tr.style.opacity = '0';
+                setTimeout(() => {
+                    tr.remove();
+                    const remaining = tbody.querySelectorAll('tr').length;
+                    recordCount.textContent = `共 ${remaining} 条记录`;
+                    if (remaining === 0) {
+                        tbody.innerHTML = '<tr><td colspan="6" class="empty-state">没有找到记录</td></tr>';
+                    }
+                }, 300);
+            }
+        })
+        .catch(() => showStatus('删除失败', 'error'));
+}
+
+function deleteSpecialRecord(id, btn) {
+    if (!confirm('确认删除这条特殊记录？')) return;
+    btn.disabled = true;
+    fetch(`/api/special_records/${id}`, { method: 'DELETE' })
         .then(r => r.json())
         .then(data => {
             if (data.success) {

@@ -445,9 +445,40 @@ def manage_list_records():
         LIMIT 200
     """
     rows = conn.execute(query, params).fetchall()
-    records = [dict(row) for row in rows]
+    records = [dict(row) | {'is_special': False} for row in rows]
+
+    # 同时查询特殊记录
+    sp_conditions = []
+    sp_params = []
+    if start_date and end_date:
+        sp_conditions.append("sr.date BETWEEN ? AND ?")
+        sp_params.extend([start_date, end_date])
+    elif date:
+        sp_conditions.append("sr.date = ?")
+        sp_params.append(date)
+    if student:
+        sp_conditions.append("s.name LIKE ?")
+        sp_params.append(f"%{student}%")
+
+    sp_where = " WHERE " + " AND ".join(sp_conditions) if sp_conditions else ""
+    sp_query = f"""
+        SELECT sr.id, s.name, sr.date, sr.type, sr.note
+        FROM special_records sr JOIN students s ON sr.student_id = s.id
+        {sp_where}
+        ORDER BY sr.date DESC, s.name ASC
+        LIMIT 200
+    """
+    sp_rows = conn.execute(sp_query, sp_params).fetchall()
+    special_records = [
+        {'id': row['id'], 'name': row['name'], 'date': row['date'],
+         'subject': '', 'content': row['note'] or '', 'remark': row['type'],
+         'is_special': True}
+        for row in sp_rows
+    ]
     conn.close()
-    return jsonify(records)
+
+    all_records = sorted(records + special_records, key=lambda x: (x['date'], x['name']), reverse=True)
+    return jsonify(all_records)
 
 
 @app.route('/api/manage/records/<int:record_id>', methods=['PUT'])
